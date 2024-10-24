@@ -12,6 +12,8 @@
 #include <type_traits>
 #include <variant>
 
+#include "span.h"
+
 namespace oxenc {
 
 struct bt_value;
@@ -23,7 +25,14 @@ using bt_dict = std::map<std::string, bt_value>;  // NB: unordered_map doesn't w
 using bt_list = std::list<bt_value>;
 
 /// The basic variant that can hold anything (recursively).
-using bt_variant = std::variant<std::string, std::string_view, int64_t, uint64_t, bt_list, bt_dict>;
+using bt_variant = std::variant<
+        std::string,
+        std::string_view,
+        int64_t,
+        uint64_t,
+        bt_list,
+        bt_dict,
+        const_span<char>>;
 
 namespace detail {
     template <typename Tuple, size_t... Is>
@@ -67,6 +76,10 @@ struct bt_value : bt_variant {
     template <typename T>
     requires(!std::integral<std::remove_cvref_t<T>> && !detail::is_tuple<std::remove_cvref_t<T>>)
     bt_value(T&& v) : bt_variant{std::forward<T>(v)} {}
+
+    template <const_span_type T>
+    bt_value(T& sp) :
+            bt_value{std::string_view{reinterpret_cast<const char*>(sp.data()), sp.size()}} {}
 
     bt_value(const char* s) : bt_value{std::string_view{s}} {}
 };
